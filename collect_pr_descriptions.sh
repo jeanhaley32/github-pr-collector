@@ -10,6 +10,7 @@ TARGET=""
 OUTPUT_FILE=""
 INCLUDE_DIFFS=false
 CUSTOM_DATE=""
+PR_STATE="merged"
 SHOW_HELP=false
 
 # Function to show help
@@ -27,6 +28,7 @@ OPTIONAL FLAGS:
     --output, -o       Output filename (default: pr_descriptions_YYYYMMDD.md)
     --include-diffs    Include full diff content for each PR
     --since            Set custom start date in YYYY-MM-DD format (default: 6 months ago)
+    --state            PR state filter: merged, closed, open, all (default: merged)
     --help, -h         Show this help message
 
 EXAMPLES:
@@ -39,8 +41,14 @@ EXAMPLES:
     # Include diffs and custom date
     ./collect_pr_descriptions.sh --target microsoft --include-diffs --since 2024-01-01
 
+    # Include closed/cancelled PRs
+    ./collect_pr_descriptions.sh --target microsoft --state all
+
+    # Only open PRs
+    ./collect_pr_descriptions.sh --target microsoft --state open
+
     # All options combined
-    ./collect_pr_descriptions.sh --target microsoft --output complete_report.md --include-diffs --since 2023-06-01
+    ./collect_pr_descriptions.sh --target microsoft --output complete_report.md --include-diffs --since 2023-06-01 --state all
 
 MODES:
     Repository Mode:  Uses format "owner/repo" - processes single repository
@@ -78,6 +86,10 @@ while [[ $# -gt 0 ]]; do
             CUSTOM_DATE="$2"
             shift 2
             ;;
+        --state)
+            PR_STATE="$2"
+            shift 2
+            ;;
         --help|-h)
             SHOW_HELP=true
             shift
@@ -102,6 +114,16 @@ if [ -z "$TARGET" ]; then
     echo "Use --help for usage information"
     exit 1
 fi
+
+# Validate state argument
+case "$PR_STATE" in
+    merged|closed|open|all)
+        ;;
+    *)
+        echo "Error: Invalid state '$PR_STATE'. Valid options: merged, closed, open, all"
+        exit 1
+        ;;
+esac
 
 # Set default output file if not specified
 if [ -z "$OUTPUT_FILE" ]; then
@@ -144,7 +166,7 @@ else
     DATE_DESCRIPTION="since $SINCE_DATE (6 months ago)"
 fi
 
-echo "Collecting PR descriptions $DATE_DESCRIPTION..."
+echo "Collecting $PR_STATE PR descriptions $DATE_DESCRIPTION..."
 if [ "$INCLUDE_DIFFS" = true ]; then
     echo "Including diffs (this may take longer)..."
 fi
@@ -179,6 +201,7 @@ cat >> "$OUTPUT_FILE" << EOF
 **Target:** $TARGET ($MODE mode)
 **Author:** $USERNAME  
 **Period:** $DATE_DESCRIPTION  
+**PR State:** $PR_STATE
 **Includes Diffs:** $INCLUDE_DIFFS
 **Repositories:** $REPO_COUNT
 
@@ -197,13 +220,13 @@ while read -r CURRENT_REPO; do
     fi
     
     # Get list of PRs created by you in the specified date range for this repo
-    PR_LIST=$(gh pr list --repo "$CURRENT_REPO" --author "$USERNAME" --state all --limit 1000 --json number,title,createdAt,state,url | jq -r --arg date "$SINCE_DATE" '.[] | select(.createdAt >= $date) | "\(.number)|\(.title)|\(.state)|\(.url)"')
+    PR_LIST=$(gh pr list --repo "$CURRENT_REPO" --author "$USERNAME" --state "$PR_STATE" --limit 1000 --json number,title,createdAt,state,url | jq -r --arg date "$SINCE_DATE" '.[] | select(.createdAt >= $date) | "\(.number)|\(.title)|\(.state)|\(.url)"')
     
     if [ -z "$PR_LIST" ]; then
         if [ "$MODE" = "org" ]; then
-            echo "  └── No PRs found in $CURRENT_REPO"
+            echo "  └── No $PR_STATE PRs found in $CURRENT_REPO"
         else
-            echo "No pull requests found for $USERNAME in $CURRENT_REPO $DATE_DESCRIPTION"
+            echo "No $PR_STATE pull requests found for $USERNAME in $CURRENT_REPO $DATE_DESCRIPTION"
         fi
         ((REPO_COUNTER++))
         continue
@@ -214,15 +237,15 @@ while read -r CURRENT_REPO; do
     TOTAL_PRS=$((TOTAL_PRS + REPO_PR_COUNT))
     
     if [ "$MODE" = "org" ]; then
-        echo "  └── Found $REPO_PR_COUNT PRs"
+        echo "  └── Found $REPO_PR_COUNT $PR_STATE PRs"
     else
-        echo "Found $REPO_PR_COUNT pull requests. Processing..."
+        echo "Found $REPO_PR_COUNT $PR_STATE pull requests. Processing..."
     fi
     
     # Add repository header
     cat >> "$OUTPUT_FILE" << EOF
 # Repository: $CURRENT_REPO
-**PRs Found:** $REPO_PR_COUNT
+**$PR_STATE PRs Found:** $REPO_PR_COUNT
 
 EOF
     
@@ -279,7 +302,7 @@ EOF
 done <<< "$REPO_LIST"
 
 echo ""
-echo "✅ Complete! Collected descriptions from $TOTAL_PRS pull requests across $REPO_COUNT repositories."
+echo "✅ Complete! Collected descriptions from $TOTAL_PRS $PR_STATE pull requests across $REPO_COUNT repositories."
 if [ "$INCLUDE_DIFFS" = true ]; then
     echo "📄 Output with diffs saved to: $OUTPUT_FILE"
 else
@@ -290,6 +313,7 @@ echo "Summary:"
 echo "- Target: $TARGET ($MODE mode)"
 echo "- Author: $USERNAME"
 echo "- Period: $DATE_DESCRIPTION"
+echo "- PR State: $PR_STATE"
 echo "- Repositories: $REPO_COUNT"
 echo "- Total PRs: $TOTAL_PRS"
 echo "- Includes Diffs: $INCLUDE_DIFFS"
