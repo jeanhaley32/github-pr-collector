@@ -1,42 +1,46 @@
 #!/bin/bash
 
 # GitHub PR Description and Diff Collector
-# Usage: ./collect_pr_descriptions.sh <repo-owner/repo-name OR organization> [output-file] [--include-diffs] [--since YYYY-MM-DD]
+# Usage: ./collect_pr_descriptions.sh --target <repo-or-org> [options]
 
 set -e
 
-# Check if repo argument is provided
-if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+# Default values
+TARGET=""
+OUTPUT_FILE=""
+INCLUDE_DIFFS=false
+CUSTOM_DATE=""
+SHOW_HELP=false
+
+# Function to show help
+show_help() {
     cat << 'EOF'
 GitHub PR Description and Diff Collector
 
 USAGE:
-    ./collect_pr_descriptions.sh <target> [output-file] [options]
+    ./collect_pr_descriptions.sh --target <repo-or-org> [options]
 
-ARGUMENTS:
-    target          Either a repository (owner/repo) or organization/username
-    output-file     Optional output filename (default: pr_descriptions_YYYYMMDD.md)
+REQUIRED FLAGS:
+    --target, -t       Repository (owner/repo) or organization/username
 
-OPTIONS:
+OPTIONAL FLAGS:
+    --output, -o       Output filename (default: pr_descriptions_YYYYMMDD.md)
     --include-diffs    Include full diff content for each PR
-    --since YYYY-MM-DD Set custom start date (default: 6 months ago from 1st of month)
+    --since            Set custom start date in YYYY-MM-DD format (default: 6 months ago)
     --help, -h         Show this help message
 
 EXAMPLES:
     # Single repository (default 6 months)
-    ./collect_pr_descriptions.sh microsoft/vscode
+    ./collect_pr_descriptions.sh --target microsoft/vscode
 
-    # Organization with diffs
-    ./collect_pr_descriptions.sh microsoft --include-diffs
+    # Organization with custom output file
+    ./collect_pr_descriptions.sh --target microsoft --output my_work.md
 
-    # Custom date range
-    ./collect_pr_descriptions.sh microsoft --since 2024-01-01
+    # Include diffs and custom date
+    ./collect_pr_descriptions.sh --target microsoft --include-diffs --since 2024-01-01
 
     # All options combined
-    ./collect_pr_descriptions.sh microsoft my_prs.md --include-diffs --since 2023-06-01
-
-    # Personal repositories
-    ./collect_pr_descriptions.sh octocat
+    ./collect_pr_descriptions.sh --target microsoft --output complete_report.md --include-diffs --since 2023-06-01
 
 MODES:
     Repository Mode:  Uses format "owner/repo" - processes single repository
@@ -53,28 +57,59 @@ REQUIREMENTS:
     - jq must be installed for JSON processing
 
 EOF
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --target|-t)
+            TARGET="$2"
+            shift 2
+            ;;
+        --output|-o)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        --include-diffs)
+            INCLUDE_DIFFS=true
+            shift
+            ;;
+        --since)
+            CUSTOM_DATE="$2"
+            shift 2
+            ;;
+        --help|-h)
+            SHOW_HELP=true
+            shift
+            ;;
+        *)
+            echo "Error: Unknown option $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Show help if requested or no arguments provided
+if [ "$SHOW_HELP" = true ] || [ $# -eq 0 ] && [ -z "$TARGET" ]; then
+    show_help
     exit 0
 fi
 
-TARGET=$1
-OUTPUT_FILE=${2:-"pr_descriptions_$(date +%Y%m%d).md"}
-INCLUDE_DIFFS=false
-CUSTOM_DATE=""
+# Validate required arguments
+if [ -z "$TARGET" ]; then
+    echo "Error: --target is required"
+    echo "Use --help for usage information"
+    exit 1
+fi
 
-# Parse arguments
-for ((i=1; i<=$#; i++)); do
-    arg="${!i}"
-    if [ "$arg" = "--include-diffs" ]; then
-        INCLUDE_DIFFS=true
-    elif [ "$arg" = "--since" ]; then
-        ((i++))
-        CUSTOM_DATE="${!i}"
+# Set default output file if not specified
+if [ -z "$OUTPUT_FILE" ]; then
+    if [ "$INCLUDE_DIFFS" = true ]; then
+        OUTPUT_FILE="pr_descriptions_with_diffs_$(date +%Y%m%d).md"
+    else
+        OUTPUT_FILE="pr_descriptions_$(date +%Y%m%d).md"
     fi
-done
-
-# If including diffs, adjust filename (only if default filename is being used)
-if [ "$INCLUDE_DIFFS" = true ] && [ "$OUTPUT_FILE" = "pr_descriptions_$(date +%Y%m%d).md" ]; then
-    OUTPUT_FILE="pr_descriptions_with_diffs_$(date +%Y%m%d).md"
 fi
 
 # Determine if we're dealing with a single repo or organization/user
