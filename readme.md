@@ -1,7 +1,5 @@
 # GitHub PR Collector
 
-> Vibe coded project
-
 A powerful bash script to collect and consolidate all your pull request descriptions and diffs across GitHub repositories. Perfect for creating comprehensive reports of your contributions, tracking your work over time, or preparing performance reviews.
 
 ## Features
@@ -13,6 +11,7 @@ A powerful bash script to collect and consolidate all your pull request descript
 - 🎯 **Smart Filtering**: Only collects PRs authored by you
 - 📊 **Detailed Progress**: Real-time feedback during processing
 - 🏷️ **Rich Metadata**: Includes PR status, URLs, and timestamps
+- 🚀 **Flag-Based Interface**: Professional CLI with explicit, order-independent flags
 
 ## Prerequisites
 
@@ -50,16 +49,16 @@ Before using this script, ensure you have:
 
 ### Basic Syntax
 ```bash
-./collect_pr_descriptions.sh <target> [output-file] [options]
+./collect_pr_descriptions.sh --target <repo-or-org> [options]
 ```
 
-### Arguments
-- **target**: Either a repository (`owner/repo`) or organization/username
-- **output-file**: Optional output filename (default: `pr_descriptions_YYYYMMDD.md`)
+### Required Flags
+- `--target`, `-t`: Repository (`owner/repo`) or organization/username
 
-### Options
+### Optional Flags
+- `--output`, `-o`: Output filename (default: `pr_descriptions_YYYYMMDD.md`)
 - `--include-diffs`: Include full diff content for each PR
-- `--since YYYY-MM-DD`: Set custom start date (default: 6 months ago)
+- `--since`: Set custom start date in YYYY-MM-DD format (default: 6 months ago)
 - `--help`, `-h`: Show help message
 
 ## Examples
@@ -67,37 +66,46 @@ Before using this script, ensure you have:
 ### Single Repository
 ```bash
 # Basic usage - last 6 months
-./collect_pr_descriptions.sh microsoft/vscode
+./collect_pr_descriptions.sh --target microsoft/vscode
 
 # With custom date range
-./collect_pr_descriptions.sh microsoft/vscode --since 2024-01-01
+./collect_pr_descriptions.sh --target microsoft/vscode --since 2024-01-01
 
 # Include diffs and custom filename
-./collect_pr_descriptions.sh microsoft/vscode my_vscode_work.md --include-diffs
+./collect_pr_descriptions.sh --target microsoft/vscode --output my_vscode_work.md --include-diffs
+
+# Using short flags
+./collect_pr_descriptions.sh -t microsoft/vscode -o my_work.md
 ```
 
 ### Organization/User Mode
 ```bash
 # All repositories in an organization
-./collect_pr_descriptions.sh microsoft
+./collect_pr_descriptions.sh --target microsoft
 
 # Personal repositories with diffs
-./collect_pr_descriptions.sh octocat --include-diffs
+./collect_pr_descriptions.sh --target octocat --include-diffs
 
 # Custom date range across all repos
-./collect_pr_descriptions.sh mycompany --since 2023-06-01
+./collect_pr_descriptions.sh --target mycompany --since 2023-06-01
+
+# With custom output file
+./collect_pr_descriptions.sh --target mycompany --output company_contributions.md
 ```
 
 ### Advanced Examples
 ```bash
 # Comprehensive report with all options
-./collect_pr_descriptions.sh microsoft my_complete_work.md --include-diffs --since 2024-01-01
+./collect_pr_descriptions.sh --target microsoft --output my_complete_work.md --include-diffs --since 2024-01-01
 
 # Annual review preparation
-./collect_pr_descriptions.sh mycompany annual_review_2024.md --since 2024-01-01
+./collect_pr_descriptions.sh --target mycompany --output annual_review_2024.md --since 2024-01-01
 
-# Recent activity check
-./collect_pr_descriptions.sh mycompany recent_work.md --since 2025-06-01
+# Recent activity check (flags can be in any order)
+./collect_pr_descriptions.sh --since 2025-06-01 --target mycompany --output recent_work.md --include-diffs
+
+# Using short form target flag
+./collect_pr_descriptions.sh -t mycompany -o quarterly_report.md --since 2025-04-01
 ```
 
 ## Operation Modes
@@ -223,6 +231,14 @@ Contributions are welcome! Please feel free to submit issues or pull requests to
 This project is open source. Feel free to use, modify, and distribute as needed.
 
 ## Changelog
+
+### v2.0.0
+- **BREAKING CHANGE**: Converted to explicit flag-based arguments
+- Added `--target`/`-t` required flag for repository or organization
+- Added `--output`/`-o` optional flag for output filename
+- Improved argument parsing with order-independent flags
+- Enhanced help documentation
+- Better error handling for missing required arguments
 
 ### v1.0.0
 - Initial release with dual-mode operation
