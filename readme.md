@@ -1,5 +1,7 @@
 # GitHub PR Collector
 
+# Vibe coded project
+
 A powerful bash script to collect and consolidate all your pull request descriptions and diffs across GitHub repositories. Perfect for creating comprehensive reports of your contributions, tracking your work over time, or preparing performance reviews.
 
 ## Features
