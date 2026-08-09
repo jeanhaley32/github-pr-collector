@@ -261,16 +261,15 @@ EOF
         # Get PR description
         DESCRIPTION=$(gh pr view "$pr_number" --repo "$CURRENT_REPO" --json body --jq '.body // "No description provided"')
         
-        # Add to output file
-        cat >> "$OUTPUT_FILE" << EOF
-## PR #$pr_number: $title
-**Status:** $state  
-**URL:** $url
-
-### Description:
-$DESCRIPTION
-
-EOF
+        # Add to output file. PR title/description are author-controlled, so
+        # write them with printf '%s' (literal data) rather than an expanding
+        # heredoc, which would run command substitution on $(...) or backticks.
+        {
+            printf '## PR #%s: %s\n' "$pr_number" "$title"
+            printf '**Status:** %s  \n' "$state"
+            printf '**URL:** %s\n\n' "$url"
+            printf '### Description:\n%s\n\n' "$DESCRIPTION"
+        } >> "$OUTPUT_FILE"
 
         # Get diff if requested
         if [ "$INCLUDE_DIFFS" = true ]; then
@@ -283,13 +282,10 @@ EOF
             # Get the diff using gh pr diff
             DIFF_OUTPUT=$(gh pr diff "$pr_number" --repo "$CURRENT_REPO" 2>/dev/null || echo "Diff not available (PR may be too old or has conflicts)")
             
-            cat >> "$OUTPUT_FILE" << EOF
-### Diff:
-\`\`\`diff
-$DIFF_OUTPUT
-\`\`\`
-
-EOF
+            # Diff content is author-controlled; write it literally (see above).
+            {
+                printf '### Diff:\n```diff\n%s\n```\n\n' "$DIFF_OUTPUT"
+            } >> "$OUTPUT_FILE"
         fi
         
         echo "---" >> "$OUTPUT_FILE"
